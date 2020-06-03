@@ -7,7 +7,7 @@ import androidx.room.Query
 
 @Dao
 interface CommentDao {
-    @Query("SELECT * FROM comment;")
+    @Query("SELECT * FROM comment ORDER BY id DESC;")
     fun getAll(): List<Comment>
 
     @Query("SELECT * FROM comment WHERE id=:id")
