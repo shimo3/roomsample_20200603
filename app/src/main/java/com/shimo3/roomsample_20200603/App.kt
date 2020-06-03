@@ -14,4 +14,8 @@ class App: Application() {
                                 "internal-db").build()
 
     }
+
+    fun getDb(): AppDatabase {
+        return db
+    }
 }
