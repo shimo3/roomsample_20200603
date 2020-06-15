@@ -4,18 +4,31 @@ import android.content.AbstractThreadedSyncAdapter
 import android.os.AsyncTask
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Handler
+import android.os.Message
 import android.util.Log
 import android.widget.ArrayAdapter
 import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
+    companion object {
+        private const val TAG = "MainActivity"
+        private const val HANDLER_SET_ADAPTER = 1
+        private const val HANDLER_REFRESH_ADAPTER = 2
+    }
+
     private lateinit var commentDao: CommentDao
+    private lateinit var data: ArrayList<String>
     private lateinit var dataAdapter: ArrayAdapter<String>
 
+    private lateinit var mHandler: Handler
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        // initialize handler
+        initHandler()
 
         // get dao
         val app = application
@@ -25,89 +38,61 @@ class MainActivity : AppCompatActivity() {
 
         // button
         btnSubmit.setOnClickListener {
-                // save data
-                SaveTask().execute()
+            // save data
+            append()
 
-            // clear input
-//            etComment.setText("")
         }
 
         // list view
-        resetAdapter()
+        initAdapter()
     }
 
-    private fun resetAdapter() {
-        // fetch data
-        FetchAsyncTask().execute()
-//        dataAdapter = ArrayAdapter<>(this, android.R.layout.simple_list_item_1, comments)
-    }
+    private fun initHandler() {
+        mHandler = object: Handler(mainLooper) {
+            override fun handleMessage(msg: Message) {
+                when (msg.what) {
+                    HANDLER_SET_ADAPTER -> {
+                        if (msg.obj is List<*>) {
+                            @Suppress("UNCHECKED_CAST")
+                            val comments = msg.obj as List<Comment>
+                            data = ArrayList<String>()
+                            comments.forEach {
+                                data.add(it.comment)
+                            }
 
-    inner class FetchAsyncTask: AsyncTask<Void, Int, Void>() {
-        private lateinit var comments: List<Comment>
+                            dataAdapter = ArrayAdapter<String>(this@MainActivity, android.R.layout.simple_list_item_1, data.toList())
+                            lv.adapter = dataAdapter
+                        }
+                    }
+                    HANDLER_REFRESH_ADAPTER -> {
+                        etComment.text.clear()
 
-        override fun onProgressUpdate(vararg values: Int?) {
-            super.onProgressUpdate(*values)
-        }
-
-        override fun onPostExecute(result: Void?) {
-            val array = ArrayList<String>()
-
-            comments.forEach {
-                array.add(it.comment)
+                        if (msg.obj is String) {
+                            val comment = msg.obj as String
+                            dataAdapter.insert(comment, 0)
+                            dataAdapter.notifyDataSetChanged()
+                        }
+                    }
+                }
             }
-
-            dataAdapter = ArrayAdapter<String>(this@MainActivity, android.R.layout.simple_list_item_1, array.toList())
-            lv.adapter = dataAdapter
-        }
-
-        override fun doInBackground(vararg params: Void?): Void? {
-            comments = commentDao.getAll()
-
-            return null
-        }
-
-        override fun onCancelled(result: Void?) {
-            super.onCancelled(result)
-        }
-
-        override fun onCancelled() {
-            super.onCancelled()
-        }
-
-        override fun onPreExecute() {
-            super.onPreExecute()
         }
     }
 
-    inner class SaveTask: AsyncTask<Void, Int, Void>() {
-        private lateinit var comment: String
+    private fun initAdapter() {
+        Thread {
+            val comments = commentDao.getAll()
 
-        override fun onProgressUpdate(vararg values: Int?) {
-            super.onProgressUpdate(*values)
-        }
-
-        override fun onPostExecute(result: Void?) {
-            etComment.setText("")
-
-            resetAdapter()
-        }
-
-        override fun doInBackground(vararg params: Void?): Void? {
-            commentDao.insert(Comment(id = 0, comment = comment))
-
-            return null
-        }
-
-        override fun onCancelled(result: Void?) {
-            super.onCancelled(result)
-        }
-
-        override fun onCancelled() {
-            super.onCancelled()
-        }
-
-        override fun onPreExecute() {
-            comment = etComment.text.toString()
-        }
+            mHandler.sendMessage(mHandler.obtainMessage(HANDLER_SET_ADAPTER, comments))
+        }.start()
     }
+
+    private fun append() {
+        val comment: String = etComment.text.toString()
+        Thread {
+            commentDao.insert(Comment(0, comment))
+
+            mHandler.sendMessage(mHandler.obtainMessage(HANDLER_REFRESH_ADAPTER, comment))
+        }.start()
+    }
+
 }
