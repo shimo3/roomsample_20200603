@@ -1,20 +1,17 @@
 package com.shimo3.roomsample_20200603
 
-import android.content.AbstractThreadedSyncAdapter
-import android.os.AsyncTask
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
 import android.os.Message
-import android.util.Log
 import android.widget.ArrayAdapter
 import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
     companion object {
         private const val TAG = "MainActivity"
-        private const val HANDLER_SET_ADAPTER = 1
-        private const val HANDLER_REFRESH_ADAPTER = 2
+        private const val HANDLER_FETCH_DATA = 1
+        private const val HANDLER_REFRESH_DATA = 2
     }
 
     private lateinit var commentDao: CommentDao
@@ -51,7 +48,7 @@ class MainActivity : AppCompatActivity() {
         mHandler = object: Handler(mainLooper) {
             override fun handleMessage(msg: Message) {
                 when (msg.what) {
-                    HANDLER_SET_ADAPTER -> {
+                    HANDLER_FETCH_DATA -> {
                         if (msg.obj is List<*>) {
                             @Suppress("UNCHECKED_CAST")
                             val comments = msg.obj as List<Comment>
@@ -64,7 +61,7 @@ class MainActivity : AppCompatActivity() {
                             lv.adapter = dataAdapter
                         }
                     }
-                    HANDLER_REFRESH_ADAPTER -> {
+                    HANDLER_REFRESH_DATA -> {
                         etComment.text.clear()
 
                         if (msg.obj is String) {
@@ -82,7 +79,7 @@ class MainActivity : AppCompatActivity() {
         Thread {
             val comments = commentDao.getAll()
 
-            mHandler.sendMessage(mHandler.obtainMessage(HANDLER_SET_ADAPTER, comments))
+            mHandler.sendMessage(mHandler.obtainMessage(HANDLER_FETCH_DATA, comments))
         }.start()
     }
 
@@ -91,7 +88,7 @@ class MainActivity : AppCompatActivity() {
         Thread {
             commentDao.insert(Comment(0, comment))
 
-            mHandler.sendMessage(mHandler.obtainMessage(HANDLER_REFRESH_ADAPTER, comment))
+            mHandler.sendMessage(mHandler.obtainMessage(HANDLER_REFRESH_DATA, comment))
         }.start()
     }
 
